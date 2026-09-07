@@ -1,0 +1,79 @@
+name: Build exact Vasuki 3D founder portfolio
+
+on:
+  push:
+    branches:
+      - exact-vasuki-3d-character
+    paths:
+      - '.github/vasuki3d_source/**'
+      - '.github/workflows/build-exact-vasuki-3d.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip exact build]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout digital profiles
+        uses: actions/checkout@v4
+        with:
+          ref: exact-vasuki-3d-character
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: /tmp/build/package-lock.json
+        continue-on-error: true
+
+      - name: Clone pinned 3D engine
+        run: |
+          git clone https://github.com/Hxni786/3d-portfolio-main.git /tmp/build
+          cd /tmp/build
+          git checkout 81128e80aeadc3d3192fc2fd5b168be7a6224b73
+
+      - name: Overlay exact Vasuki ZIP customizations
+        run: |
+          cp -a "$GITHUB_WORKSPACE/.github/vasuki3d_source/." /tmp/build/
+          echo 'Overlay files:'
+          find /tmp/build/src/components -maxdepth 3 -type f | sort | head -80
+
+      - name: Install dependencies and build
+        working-directory: /tmp/build
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Verify production output
+        run: |
+          test -f /tmp/build/dist/index.html
+          test -f /tmp/build/dist/models/character.enc
+          test -f /tmp/build/dist/models/char_enviorment.hdr
+          test -f /tmp/build/dist/draco/draco_decoder.js
+          test -f /tmp/build/dist/draco/draco_decoder.wasm
+          test -f /tmp/build/dist/images/vasuki-nfc-card.svg
+          grep -q '/digital-profiles/hemshankar-agarwal/' /tmp/build/dist/index.html
+          grep -R -q 'VASUKI' /tmp/build/dist/assets
+          echo 'Exact 3D production bundle verified.'
+
+      - name: Replace founder route with production dist
+        run: |
+          mkdir -p hemshankar-agarwal/photos
+          find hemshankar-agarwal -mindepth 1 -maxdepth 1 ! -name photos -exec rm -rf {} +
+          cp -a /tmp/build/dist/. hemshankar-agarwal/
+          rm -rf .github/vasuki3d .github/vasuki3d_exact .github/vasuki3d_source
+          rm -f .github/workflows/build-exact-vasuki-3d.yml
+
+      - name: Commit generated exact portfolio
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --stat
+          git commit -m 'Build exact Vasuki 3D founder portfolio [skip exact build]'
+          git push origin HEAD:exact-vasuki-3d-character
