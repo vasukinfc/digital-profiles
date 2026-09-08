@@ -7,8 +7,8 @@
     phoneHref: '+916377393721',
     email: 'hemshankar642@gmail.com',
     website: 'https://vasukinfc.in/',
-    instagram: 'https://www.instagram.com/_vasuki_99/',
-    instagramLabel: '@_vasuki_99'
+    instagram: 'https://www.instagram.com/hemshankaragarwal/',
+    instagramLabel: '@hemshankaragarwal'
   };
 
   const setLink = (link, href, label) => {
